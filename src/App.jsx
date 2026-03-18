@@ -9,6 +9,17 @@ function App() {
   const assistant = new Assistant();
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  function updateLastMessageContent(content) {
+    setMessages((prevMessages) =>
+      prevMessages.map((message, index) =>
+        index === prevMessages.length - 1
+          ? { ...message, content: `${message.content}${content}` }
+          : message
+      )
+    );
+  }
 
   function addMessage(message) {
     setMessages((prevMessages) => [...prevMessages, message]);
@@ -19,14 +30,21 @@ function App() {
     setIsLoading(true);
 
     try {
-      const result = await assistant.chat(content);
+     const result = await assistant.chatStream(content);
+      let isFirstChunk = false;
 
-      console.log("Gemini result:", result);
+      for await (const chunk of result) {
+        if (!isFirstChunk) {
+          isFirstChunk = true;
+          addMessage({ content: "", role: "assistant" });
+          setIsLoading(false);
+          setIsStreaming(true);
+        }
 
-      addMessage({
-        content: result,
-        role: "assistant",
-      });
+        updateLastMessageContent(chunk);
+      }
+
+      setIsStreaming(false);
     } catch (error) {
       console.error("Gemini error:", error);
 
@@ -34,9 +52,8 @@ function App() {
         content: "Sorry, I couldn't process your request. Please try again!",
         role: "system",
       });
-    } finally {
-      setIsLoading(false);
-    }
+       setIsStreaming(false);
+    } 
   }
 
   return (
@@ -51,7 +68,10 @@ function App() {
         <Chat messages={messages} />
       </div>
 
-      <Controls isDisabled={isLoading} onSend={handleContentSend} />
+     <Controls
+        isDisabled={isLoading || isStreaming}
+        onSend={handleContentSend}
+      />
     </div>
   );
 }

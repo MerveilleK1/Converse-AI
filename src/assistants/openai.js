@@ -13,6 +13,7 @@ export class Assistant {
   }
 
   async chat(content, history = []) {
+    try{
     const formattedHistory = history.map((message) => ({
       role: message.role,
       content: [
@@ -40,5 +41,36 @@ export class Assistant {
     });
 
     return result.output_text;
+  } catch (error) {
+      throw error;
+    }
+  }
+
+
+    async *chatStream(content, history = []) {
+    const formattedHistory = this.formatHistory(history);
+
+    const stream = await openai.responses.create({
+      model: this.#model,
+      input: [
+        ...formattedHistory,
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: content,
+            },
+          ],
+        },
+      ],
+      stream: true,
+    });
+
+    for await (const event of stream) {
+      if (event.type === "response.output_text.delta") {
+        yield event.delta;
+      }
+    }
   }
 }

@@ -9,22 +9,45 @@ function App() {
   const assistant = new Assistant();
   const [messages, setMessages] = useState([]);
 
+   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  function updateLastMessageContent(content) {
+    setMessages((prevMessages) =>
+      prevMessages.map((message, index) =>
+        index === prevMessages.length - 1
+          ? { ...message, content: `${message.content}${content}` }
+          : message
+      )
+    );
+  }
+
+
   function addMessage(message) {
     setMessages((prevMessages) => [...prevMessages, message]);
   }
 
   async function handleContentSend(content) {
     addMessage({ content, role: "user" });
+    setIsLoading(true);
 
     try {
-      const result = await assistant.chat(content, messages);
+      const result = await assistant.chatStream(content, messages);
 
-      console.log("Gemini result:", result);
+      let isFirstChunk = false;
 
-      addMessage({
-        content: result,
-        role: "assistant",
-      });
+      for await (const chunk of result) {
+        if (!isFirstChunk) {
+          isFirstChunk = true;
+          addMessage({ content: "", role: "assistant" });
+          setIsLoading(false);
+          setIsStreaming(true);
+        }
+
+        updateLastMessageContent(chunk);
+      }
+
+      setIsStreaming(false);
     } catch (error) {
       console.error("Gemini error:", error);
 
