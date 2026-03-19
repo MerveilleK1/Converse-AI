@@ -4,12 +4,14 @@ import { Sidebar } from "./components/Sidebar/Sidebar";
 import { Chat } from "./components/Chat/Chat";
 import { Assistant } from "./components/Assistant/Assistant";
 import styles from "./App.module.css";
-
+import { WelcomeOverlay } from "./components/Welcome/WelcomeOverlay";
 
 function App() {
   const [assistant, setAssistant] = useState();
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState();
+  const [hasStarted, setHasStarted] = useState(false);
+
   const activeChatMessages = useMemo(
     () => chats.find(({ id }) => id === activeChatId)?.messages ?? [],
     [chats, activeChatId],
@@ -49,8 +51,15 @@ function App() {
     );
   }
 
+    function handleStart() {
+    setHasStarted(true);
+  }
+
+
   return (
+    
     <div className={styles.App}>
+     
       <header className={styles.Header}>
         <img className={styles.Logo} src="/chatbot.png" />
         <h2 className={styles.Title}>Converse-AI</h2>
@@ -66,6 +75,8 @@ function App() {
         />
 
         <main className={styles.Main}>
+           {!hasStarted && <WelcomeOverlay onStart={handleStart} />}
+
              {chats.map((chat) => (
             <Chat
               key={chat.id}

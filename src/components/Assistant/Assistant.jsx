@@ -30,36 +30,33 @@ export function Assistant({ onAssistantChange }) {
   }, [value]);
 
   return (
-       <div className={styles.Assistant}>
-      <label htmlFor="assistant-select" className={styles.label}>
+    <div className={styles.Assistant}>
+      <label htmlFor="assistant-select" className={styles.Label}>
         Assistant
       </label>
 
-      <div className={styles.selectWrap}>
-        <select
-          id="assistant-select"
-          value={value}
-          onChange={handleValueChange}
-          className={styles.select}
-        >
-          <optgroup label="Google AI">
-            <option value="googleai:gemini-2.5-flash">Gemini 2.5 Flash</option>
-            <option value="googleai:gemini-2.5-flash-lite">
-              Gemini 2.5 Flash-Lite
-            </option>
-          </optgroup>
+      <select
+        id="assistant-select"
+        className={styles.Select}
+        value={value}
+        onChange={handleValueChange}
+      >
+        <optgroup label="Google AI">
+          <option value="googleai:gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="googleai:gemini-2.5-flash-lite">
+            Gemini 2.5 Flash-Lite
+          </option>
+        </optgroup>
 
-          <optgroup label="OpenAI">
-            <option value="openai:gpt-4o-mini">GPT-4o mini</option>
-            <option value="openai:gpt-4.1-nano">GPT-4.1 nano</option>
-          </optgroup>
+        <optgroup label="Open AI">
+          <option value="openai:gpt-4o-mini">GPT-4o mini</option>
+          <option value="openai:gpt-4.1-nano">GPT-4.1 nano</option>
+        </optgroup>
 
-          <optgroup label="DeepSeek AI">
-            <option value="deepseekai:deepseek-chat">DeepSeek-V3</option>
-          </optgroup>
-        </select>
-      </div>
+        <optgroup label="DeepSeek AI">
+          <option value="deepseekai:deepseek-chat">DeepSeek-V3</option>
+        </optgroup>
+      </select>
     </div>
   );
-
 }
