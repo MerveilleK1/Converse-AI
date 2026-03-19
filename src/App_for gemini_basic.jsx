@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { Assistant } from "./assistants/deepseekai";
+import { Assistant } from "./assistants/googleai";
 import { Chat } from "./components/Chat/Chat";
 import { Controls } from "./components/Controls/Controls";
+import { Loader } from "./components/Loader/Loader";
 import styles from "./App.module.css";
-
 
 function App() {
   const assistant = new Assistant();
   const [messages, setMessages] = useState([]);
-
-   const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
   function updateLastMessageContent(content) {
@@ -22,7 +21,6 @@ function App() {
     );
   }
 
-
   function addMessage(message) {
     setMessages((prevMessages) => [...prevMessages, message]);
   }
@@ -32,8 +30,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const result = await assistant.chatStream(content, messages);
-
+     const result = await assistant.chatStream(content);
       let isFirstChunk = false;
 
       for await (const chunk of result) {
@@ -55,11 +52,13 @@ function App() {
         content: "Sorry, I couldn't process your request. Please try again!",
         role: "system",
       });
-    }
+       setIsStreaming(false);
+    } 
   }
 
   return (
     <div className={styles.App}>
+      {isLoading && <Loader />}
       <header className={styles.Header}>
         <img className={styles.Logo} src="/chatbot.png" />
         <h2 className={styles.Title}>Converse-AI</h2>
@@ -69,7 +68,10 @@ function App() {
         <Chat messages={messages} />
       </div>
 
-      <Controls onSend={handleContentSend} />
+     <Controls
+        isDisabled={isLoading || isStreaming}
+        onSend={handleContentSend}
+      />
     </div>
   );
 }
