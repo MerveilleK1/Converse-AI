@@ -30,7 +30,10 @@ function App() {
     setIsLoading(true);
 
     try {
-     const result = await assistant.chatStream(content);
+     const result = await assistant.chatStream(
+        content,
+        messages.filter(({ role }) => role !== "system")
+      );
       let isFirstChunk = false;
 
       for await (const chunk of result) {
@@ -49,9 +52,12 @@ function App() {
       console.error("Gemini error:", error);
 
       addMessage({
-        content: "Sorry, I couldn't process your request. Please try again!",
+        content:
+          error?.message ??
+          "Sorry, I couldn't process your request. Please try again!",
         role: "system",
       });
+       setIsLoading(false);
        setIsStreaming(false);
     } 
   }

@@ -26,7 +26,10 @@ export class Assistant {
   }
 
   async chat(content, history = []) {
-    const messages = [
+
+    try {
+
+      const messages = [
       {
         role: "system",
         content: "You are a helpful assistant.",
@@ -45,10 +48,17 @@ export class Assistant {
     });
 
     return completion.choices[0]?.message?.content ?? "";
+      
+    } catch (error) {
+       throw this.#parseError(error);
+    }
+    
   }
 
   async *chatStream(content, history = []) {
-    const messages = [
+
+    try {
+       const messages = [
       {
         role: "system",
         content: "You are a helpful assistant.",
@@ -69,5 +79,12 @@ export class Assistant {
     for await (const chunk of stream) {
       yield chunk.choices[0]?.delta?.content || "";
     }
+    } catch (error) {
+       throw this.#parseError(error);
+    }
+  }
+
+   #parseError(error) {
+    return error;
   }
 }

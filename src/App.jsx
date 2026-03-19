@@ -1,61 +1,52 @@
-import { useState } from "react";
-import { Assistant } from "./assistants/deepseekai";
+import { useEffect, useMemo, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { Sidebar } from "./components/Sidebar/Sidebar";
 import { Chat } from "./components/Chat/Chat";
-import { Controls } from "./components/Controls/Controls";
+import { Assistant } from "./components/Assistant/Assistant";
 import styles from "./App.module.css";
 
 
 function App() {
-  const assistant = new Assistant();
-  const [messages, setMessages] = useState([]);
+  const [assistant, setAssistant] = useState();
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState();
+  const activeChatMessages = useMemo(
+    () => chats.find(({ id }) => id === activeChatId)?.messages ?? [],
+    [chats, activeChatId],
+  );
 
-   const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
+  useEffect(() => {
+    handleNewChatCreate();
+  }, []);
 
-  function updateLastMessageContent(content) {
-    setMessages((prevMessages) =>
-      prevMessages.map((message, index) =>
-        index === prevMessages.length - 1
-          ? { ...message, content: `${message.content}${content}` }
-          : message
-      )
+  function handleAssistantChange(newAssistant) {
+    setAssistant(newAssistant);
+  }
+
+  function handleChatMessagesUpdate(id, messages) {
+    const title = messages[0]?.content.split(" ").slice(0, 7).join(" ");
+
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === id
+          ? { ...chat, title: chat.title ?? title, messages }
+          : chat,
+      ),
     );
   }
 
+  function handleNewChatCreate() {
+    const id = uuidv4();
 
-  function addMessage(message) {
-    setMessages((prevMessages) => [...prevMessages, message]);
+    setActiveChatId(id);
+    setChats((prevChats) => [...prevChats, { id, messages: [] }]);
   }
 
-  async function handleContentSend(content) {
-    addMessage({ content, role: "user" });
-    setIsLoading(true);
-
-    try {
-      const result = await assistant.chatStream(content, messages);
-
-      let isFirstChunk = false;
-
-      for await (const chunk of result) {
-        if (!isFirstChunk) {
-          isFirstChunk = true;
-          addMessage({ content: "", role: "assistant" });
-          setIsLoading(false);
-          setIsStreaming(true);
-        }
-
-        updateLastMessageContent(chunk);
-      }
-
-      setIsStreaming(false);
-    } catch (error) {
-      console.error("Gemini error:", error);
-
-      addMessage({
-        content: "Sorry, I couldn't process your request. Please try again!",
-        role: "system",
-      });
-    }
+  function handleActiveChatIdChange(id) {
+    setActiveChatId(id);
+    setChats((prevChats) =>
+      prevChats.filter(({ messages }) => messages.length > 0),
+    );
   }
 
   return (
@@ -65,11 +56,31 @@ function App() {
         <h2 className={styles.Title}>Converse-AI</h2>
       </header>
 
-      <div className={styles.ChatContainer}>
-        <Chat messages={messages} />
-      </div>
+      <div className={styles.Content}>
+        <Sidebar
+          chats={chats}
+          activeChatId={activeChatId}
+          activeChatMessages={activeChatMessages}
+          onActiveChatIdChange={handleActiveChatIdChange}
+          onNewChatCreate={handleNewChatCreate}
+        />
 
-      <Controls onSend={handleContentSend} />
+        <main className={styles.Main}>
+             {chats.map((chat) => (
+            <Chat
+              key={chat.id}
+              assistant={assistant}
+              isActive={chat.id === activeChatId}
+              chatId={chat.id}
+              chatMessages={chat.messages}
+              onChatMessagesUpdate={handleChatMessagesUpdate}
+            />
+          ))}
+          <div className={styles.Configuration}>
+            <Assistant onAssistantChange={handleAssistantChange} />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
