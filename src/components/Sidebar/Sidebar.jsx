@@ -43,8 +43,7 @@ export function Sidebar({
           className={styles.NewChatButton}
           disabled={activeChatMessages.length === 0}
           onClick={onNewChatCreate}
-        >
-          + 
+        > +
         </button>
         <ul className={styles.Chats}>
           {chats

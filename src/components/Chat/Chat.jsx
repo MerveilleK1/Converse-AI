@@ -1,4 +1,3 @@
-
 import styles from "./Chat.module.css";
 import { useEffect, useState } from "react";
 import { Loader } from "../Loader/Loader";
@@ -16,7 +15,7 @@ export function Chat({
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
-   useEffect(() => {
+  useEffect(() => {
     setMessages(chatMessages);
 
     if (assistant?.name === "googleai") {
@@ -33,8 +32,8 @@ export function Chat({
       prevMessages.map((message, index) =>
         index === prevMessages.length - 1
           ? { ...message, content: `${message.content}${content}` }
-          : message
-      )
+          : message,
+      ),
     );
   }
 
@@ -48,10 +47,10 @@ export function Chat({
     try {
       const result = await assistant.chatStream(
         content,
-        messages.filter(({ role }) => role !== "system")
+        messages.filter(({ role }) => role !== "system"),
       );
 
-    let isFirstChunk = false;
+      let isFirstChunk = false;
       for await (const chunk of result) {
         if (!isFirstChunk) {
           isFirstChunk = true;
@@ -60,7 +59,7 @@ export function Chat({
           setIsStreaming(true);
         }
 
-      updateLastMessageContent(chunk);
+        updateLastMessageContent(chunk);
       }
 
       setIsStreaming(false);
@@ -74,12 +73,12 @@ export function Chat({
       setIsLoading(false);
       setIsStreaming(false);
     }
-   }
+  }
 
-    if (!isActive) return null;
+  if (!isActive) return null;
 
   return (
-     <>
+    <>
       {isLoading && <Loader />}
 
       <div className={styles.Chat}>
