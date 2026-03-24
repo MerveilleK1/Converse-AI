@@ -1,57 +1,97 @@
-import { useState } from "react";
-import { Assistant } from "./assistants/googleai";
+import { useEffect, useMemo, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { Sidebar } from "./components/Sidebar/Sidebar";
 import { Chat } from "./components/Chat/Chat";
-import { Controls } from "./components/Controls/Controls";
-import { Loader } from "./components/Loader/Loader";
+import { Assistant } from "./components/Assistant/Assistant";
 import styles from "./App.module.css";
+import { WelcomeOverlay } from "./components/Welcome/WelcomeOverlay";
 
 function App() {
-  const assistant = new Assistant();
-  const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [assistant, setAssistant] = useState();
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState();
+  const [hasStarted, setHasStarted] = useState(false);
 
-  function addMessage(message) {
-    setMessages((prevMessages) => [...prevMessages, message]);
+  const activeChatMessages = useMemo(
+    () => chats.find(({ id }) => id === activeChatId)?.messages ?? [],
+    [chats, activeChatId],
+  );
+
+  useEffect(() => {
+    handleNewChatCreate();
+  }, []);
+
+  function handleAssistantChange(newAssistant) {
+    setAssistant(newAssistant);
   }
 
-  async function handleContentSend(content) {
-    addMessage({ content, role: "user" });
-    setIsLoading(true);
+  function handleChatMessagesUpdate(id, messages) {
+    const title = messages[0]?.content.split(" ").slice(0, 7).join(" ");
 
-    try {
-      const result = await assistant.chat(content);
-
-      console.log("Gemini result:", result);
-
-      addMessage({
-        content: result,
-        role: "assistant",
-      });
-    } catch (error) {
-      console.error("Gemini error:", error);
-
-      addMessage({
-        content: "Sorry, I couldn't process your request. Please try again!",
-        role: "system",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat.id === id
+          ? { ...chat, title: chat.title ?? title, messages }
+          : chat,
+      ),
+    );
   }
+
+  function handleNewChatCreate() {
+    const id = uuidv4();
+
+    setActiveChatId(id);
+    setChats((prevChats) => [...prevChats, { id, messages: [] }]);
+  }
+
+  function handleActiveChatIdChange(id) {
+    setActiveChatId(id);
+    setChats((prevChats) =>
+      prevChats.filter(({ messages }) => messages.length > 0),
+    );
+  }
+
+    function handleStart() {
+    setHasStarted(true);
+  }
+
 
   return (
+    
     <div className={styles.App}>
-      {isLoading && <Loader />}
+     
       <header className={styles.Header}>
         <img className={styles.Logo} src="/chatbot.png" />
         <h2 className={styles.Title}>Converse-AI</h2>
       </header>
 
-      <div className={styles.ChatContainer}>
-        <Chat messages={messages} />
-      </div>
+      <div className={styles.Content}>
+        <Sidebar
+          chats={chats}
+          activeChatId={activeChatId}
+          activeChatMessages={activeChatMessages}
+          onActiveChatIdChange={handleActiveChatIdChange}
+          onNewChatCreate={handleNewChatCreate}
+        />
 
-      <Controls isDisabled={isLoading} onSend={handleContentSend} />
+        <main className={styles.Main}>
+           {!hasStarted && <WelcomeOverlay onStart={handleStart} />}
+
+             {chats.map((chat) => (
+            <Chat
+              key={chat.id}
+              assistant={assistant}
+              isActive={chat.id === activeChatId}
+              chatId={chat.id}
+              chatMessages={chat.messages}
+              onChatMessagesUpdate={handleChatMessagesUpdate}
+            />
+          ))}
+          <div className={styles.Configuration}>
+            <Assistant onAssistantChange={handleAssistantChange} />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

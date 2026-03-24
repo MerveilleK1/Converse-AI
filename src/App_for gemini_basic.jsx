@@ -1,39 +1,23 @@
-import styles from "./Chat.module.css";
-import { useEffect, useState } from "react";
-import { Loader } from "../Loader/Loader";
-import { Messages } from "../Messages/Messages";
-import { Controls } from "../Controls/Controls";
+import { useState } from "react";
+import { Assistant } from "./assistants/googleai";
+import { Chat } from "./components/Chat/Chat";
+import { Controls } from "./components/Controls/Controls";
+import { Loader } from "./components/Loader/Loader";
+import styles from "./App.module.css";
 
-export function Chat({
-  assistant,
-  isActive = false,
-  chatId,
-  chatMessages,
-  onChatMessagesUpdate,
-}) {
+function App() {
+  const assistant = new Assistant();
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-
-  useEffect(() => {
-    setMessages(chatMessages);
-
-    if (assistant?.name === "googleai") {
-      assistant.createChat(chatMessages);
-    }
-  }, [chatId]);
-
-  useEffect(() => {
-    onChatMessagesUpdate(chatId, messages);
-  }, [messages]);
 
   function updateLastMessageContent(content) {
     setMessages((prevMessages) =>
       prevMessages.map((message, index) =>
         index === prevMessages.length - 1
           ? { ...message, content: `${message.content}${content}` }
-          : message,
-      ),
+          : message
+      )
     );
   }
 
@@ -44,13 +28,14 @@ export function Chat({
   async function handleContentSend(content) {
     addMessage({ content, role: "user" });
     setIsLoading(true);
-    try {
-      const result = await assistant.chatStream(
-        content,
-        messages.filter(({ role }) => role !== "system"),
-      );
 
+    try {
+     const result = await assistant.chatStream(
+        content,
+        messages.filter(({ role }) => role !== "system")
+      );
       let isFirstChunk = false;
+
       for await (const chunk of result) {
         if (!isFirstChunk) {
           isFirstChunk = true;
@@ -64,31 +49,37 @@ export function Chat({
 
       setIsStreaming(false);
     } catch (error) {
+      console.error("Gemini error:", error);
+
       addMessage({
         content:
           error?.message ??
           "Sorry, I couldn't process your request. Please try again!",
         role: "system",
       });
-      setIsLoading(false);
-      setIsStreaming(false);
-    }
+       setIsLoading(false);
+       setIsStreaming(false);
+    } 
   }
 
-  if (!isActive) return null;
-
   return (
-    <>
+    <div className={styles.App}>
       {isLoading && <Loader />}
+      <header className={styles.Header}>
+        <img className={styles.Logo} src="/chatbot.png" />
+        <h2 className={styles.Title}>Converse-AI</h2>
+      </header>
 
-      <div className={styles.Chat}>
-        <Messages messages={messages} />
+      <div className={styles.ChatContainer}>
+        <Chat messages={messages} />
       </div>
 
-      <Controls
+     <Controls
         isDisabled={isLoading || isStreaming}
         onSend={handleContentSend}
       />
-    </>
+    </div>
   );
 }
+
+export default App;

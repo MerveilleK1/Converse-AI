@@ -1,22 +1,9 @@
 .Chat {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-  padding: 8px;
-  overflow-y: auto;
-}
-
-.Message {
-  width: 90%;
-  padding: 0 16px;
+  flex-grow: 1;
+  width: 100%;
+  background: light-dark(#ffffff, #212121);
   border-radius: 16px;
-  font-size: 14px;
-
-  &[data-role="user"] {
-    align-self: flex-end;
-    background: light-dark(#f3f3f3, #303030);
-  }
+  overflow-y: auto;
 }
 
 .Group {
