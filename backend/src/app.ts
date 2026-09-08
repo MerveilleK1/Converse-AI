@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { createDeepSeekReply } from "./services/deepseek.js";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
 
@@ -18,7 +19,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/api/chat", (req, res) => {
+app.post("/api/chat", async (req, res, next) => {
   const { message } = req.body;
 
   if (typeof message !== "string" || message.trim().length === 0) {
@@ -26,7 +27,12 @@ app.post("/api/chat", (req, res) => {
     return;
   }
 
-  res.json({ reply: "Test response from backend" });
+  try {
+    const reply = await createDeepSeekReply(message.trim());
+    res.json({ reply });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.use(errorHandler);
