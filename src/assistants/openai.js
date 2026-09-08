@@ -1,16 +1,7 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPEN_AI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
-
 export class Assistant {
   #model;
-  #client;
 
-  constructor(model = "gpt-4o-mini", client = openai) {
-    this.#client = client;
+  constructor(model = "gpt-4o-mini") {
     this.#model = model;
   }
 
@@ -20,40 +11,36 @@ export class Assistant {
         (message) =>
           message.role === "user" ||
           message.role === "assistant" ||
-          message.role === "system"
+          message.role === "system",
       )
       .map((message) => ({
         role: message.role,
-        content: [
-          {
-            type: message.role === "assistant" ? "output_text" : "input_text",
-            text: message.content,
-          },
-        ],
+        content: message.content,
       }));
   }
 
   async chat(content, history = []) {
     try {
-      const formattedHistory = this.#formatHistory(history);
-
-      const result = await this.#client.responses.create({
-        model: this.#model,
-        input: [
-          ...formattedHistory,
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: content,
-              },
-            ],
-          },
-        ],
+      const response = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "openai",
+          message: content,
+          model: this.#model,
+          history: this.#formatHistory(history),
+        }),
       });
 
-      return result.output_text;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Backend request failed");
+      }
+
+      return data.reply;
     } catch (error) {
       throw this.#parseError(error);
     }
@@ -61,30 +48,7 @@ export class Assistant {
 
   async *chatStream(content, history = []) {
     try {
-      const formattedHistory = this.#formatHistory(history);
-
-      const stream = await this.#client.responses.create({
-        model: this.#model,
-        input: [
-          ...formattedHistory,
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: content,
-              },
-            ],
-          },
-        ],
-        stream: true,
-      });
-
-      for await (const event of stream) {
-        if (event.type === "response.output_text.delta") {
-          yield event.delta;
-        }
-      }
+      yield await this.chat(content, history);
     } catch (error) {
       throw this.#parseError(error);
     }

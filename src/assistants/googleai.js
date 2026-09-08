@@ -1,69 +1,63 @@
-import { GoogleGenAI} from "@google/genai";
-
-const googleai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GOOGLE_AI_API_KEY,
-});
-
-
-
 export class Assistant {
-  #chat;
- name = "googleai";
+  #model;
+  name = "googleai";
 
   constructor(model = "gemini-2.5-flash") {
-    
-    this.#chat = googleai.chats.create({
-  model: "gemini-2.5-flash",
-  history: [],
-});
+    this.#model = model;
   }
 
-  createChat(history) {
-    this.#chat = googleai.chats.create({
-      model: this.#chat.model,
-      history: history
-        .filter(({ role }) => role !== "system")
-        .map(({ content, role }) => ({
-          parts: [{ text: content }],
-          role: role === "assistant" ? "model" : role,
-        })),
-    });
+  createChat() {}
+
+  #formatHistory(history = []) {
+    return history
+      .filter(
+        (message) =>
+          message.role === "user" ||
+          message.role === "assistant" ||
+          message.role === "system",
+      )
+      .map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
   }
 
-
-  async chat(content) {
+  async chat(content, history = []) {
     try {
-      const result = await this.#chat.sendMessage({message: content});
-      return result.text;
+      const response = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "googleai",
+          message: content,
+          model: this.#model,
+          history: this.#formatHistory(history),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Backend request failed");
+      }
+
+      return data.reply;
     } catch (error) {
       throw this.#parseError(error);
     }
   }
 
-   async *chatStream(content) {
+  async *chatStream(content, history = []) {
     try {
-      const result = await this.#chat.sendMessageStream({message: content});
-
-      for await (const chunk of result) {
-        yield chunk.text;
-      }
+      yield await this.chat(content, history);
     } catch (error) {
-     throw this.#parseError(error);
+      throw this.#parseError(error);
     }
   }
 
-   #parseError(error) {
-    try {
-     
-      const [, outerErrorJSON] = error?.message?.split(" . ");
-      const outerErrorObject = JSON.parse(outerErrorJSON);
-
-     
-      const innerErrorObject = JSON.parse(outerErrorObject?.error?.message);
-
-      return innerErrorObject?.error;
-    } catch (parseError) {
-      return error;
-    }
+  #parseError(error) {
+    return error;
   }
 }

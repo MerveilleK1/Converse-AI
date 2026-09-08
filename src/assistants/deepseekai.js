@@ -1,11 +1,3 @@
-import OpenAI from "openai";
-
-const deepseek = new OpenAI({
-  baseURL: "https://api.deepseek.com",
-  apiKey: import.meta.env.VITE_DEEPSEEK_AI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
-
 export class Assistant {
   #model;
 
@@ -13,11 +5,13 @@ export class Assistant {
     this.#model = model;
   }
 
-  formatHistory(history = []) {
+  #formatHistory(history = []) {
     return history
       .filter(
         (message) =>
-          message.role === "user" || message.role === "assistant" || message.role === "system"
+          message.role === "user" ||
+          message.role === "assistant" ||
+          message.role === "system",
       )
       .map((message) => ({
         role: message.role,
@@ -26,65 +20,41 @@ export class Assistant {
   }
 
   async chat(content, history = []) {
-
     try {
+      const response = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          provider: "deepseek",
+          message: content,
+          model: this.#model,
+          history: this.#formatHistory(history),
+        }),
+      });
 
-      const messages = [
-      {
-        role: "system",
-        content: "You are a helpful assistant.",
-      },
-      ...this.formatHistory(history),
-      {
-        role: "user",
-        content,
-      },
-    ];
+      const data = await response.json();
 
-    const completion = await deepseek.chat.completions.create({
-      model: this.#model,
-      messages,
-      stream: false,
-    });
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Backend request failed");
+      }
 
-    return completion.choices[0]?.message?.content ?? "";
-      
+      return data.reply;
     } catch (error) {
-       throw this.#parseError(error);
+      throw this.#parseError(error);
     }
-    
   }
 
   async *chatStream(content, history = []) {
-
     try {
-       const messages = [
-      {
-        role: "system",
-        content: "You are a helpful assistant.",
-      },
-      ...this.formatHistory(history),
-      {
-        role: "user",
-        content,
-      },
-    ];
-
-    const stream = await deepseek.chat.completions.create({
-      model: this.#model,
-      messages,
-      stream: true,
-    });
-
-    for await (const chunk of stream) {
-      yield chunk.choices[0]?.delta?.content || "";
-    }
+      yield await this.chat(content, history);
     } catch (error) {
-       throw this.#parseError(error);
+      throw this.#parseError(error);
     }
   }
 
-   #parseError(error) {
+  #parseError(error) {
     return error;
   }
 }
