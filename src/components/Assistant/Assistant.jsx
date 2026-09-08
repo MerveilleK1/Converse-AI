@@ -2,17 +2,19 @@ import { useEffect, useState } from "react";
 import { Assistant as GoogleAIAssistant } from "../../assistants/googleai";
 import { Assistant as OpenAIAssistant } from "../../assistants/openai";
 import { Assistant as DeepSeekAIAssistant } from "../../assistants/deepseekai";
+import { Assistant as BackendAssistant } from "../../assistants/backend";
 
 import styles from "./Assistant.module.css";
 
 const assistantMap = {
+  backend: BackendAssistant,
   googleai: GoogleAIAssistant,
   openai: OpenAIAssistant,
   deepseekai: DeepSeekAIAssistant,
 };
 
 export function Assistant({ onAssistantChange }) {
-  const [value, setValue] = useState("googleai:gemini-2.5-flash");
+  const [value, setValue] = useState("backend:test");
 
   function handleValueChange(event) {
     setValue(event.target.value);
@@ -41,6 +43,10 @@ export function Assistant({ onAssistantChange }) {
         value={value}
         onChange={handleValueChange}
       >
+        <optgroup label="Backend">
+          <option value="backend:test">Backend test</option>
+        </optgroup>
+
         <optgroup label="Google AI">
           <option value="googleai:gemini-2.5-flash">Gemini 2.5 Flash</option>
           <option value="googleai:gemini-2.5-flash-lite">
