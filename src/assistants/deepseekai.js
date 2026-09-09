@@ -23,7 +23,7 @@ export class Assistant {
       }));
   }
 
-  async chat(content, history = []) {
+  async chat(content, history = [], conversationId) {
     try {
       const response = await fetch("http://localhost:3001/api/chat", {
         method: "POST",
@@ -33,6 +33,7 @@ export class Assistant {
         },
         body: JSON.stringify({
           provider: "deepseek",
+          conversationId,
           message: content,
           model: this.#model,
           history: this.#formatHistory(history),
@@ -58,9 +59,9 @@ export class Assistant {
     }
   }
 
-  async *chatStream(content, history = []) {
+  async *chatStream(content, history = [], conversationId) {
     try {
-      yield await this.chat(content, history);
+      yield await this.chat(content, history, conversationId);
     } catch (error) {
       throw this.#parseError(error);
     }

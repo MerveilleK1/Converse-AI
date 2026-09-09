@@ -47,7 +47,6 @@ export function Sidebar({
         </button>
         <ul className={styles.Chats}>
           {chats
-            .filter(({ messages }) => messages.length > 0)
             .map((chat) => (
               <li
                 key={chat.id}

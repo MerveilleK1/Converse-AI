@@ -49,6 +49,7 @@ export function Chat({
       const result = await assistant.chatStream(
         content,
         messages.filter(({ role }) => role !== "system"),
+        chatId,
       );
 
       let isFirstChunk = false;

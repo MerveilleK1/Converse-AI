@@ -1,34 +1,28 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const chatExchangeSchema = new Schema(
+const conversationSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    conversationId: {
-      type: Schema.Types.ObjectId,
-      ref: "Conversation",
-      required: true,
-    },
-    userMessage: {
+    title: {
       type: String,
       required: true,
       trim: true,
-    },
-    assistantMessage: {
-      type: String,
-      required: true,
+      default: "New chat",
     },
     provider: {
       type: String,
       enum: ["openai", "deepseek", "googleai"],
       required: true,
+      default: "openai",
     },
     model: {
       type: String,
       required: true,
+      default: "gpt-4o-mini",
     },
     createdAt: {
       type: Date,
@@ -41,9 +35,9 @@ const chatExchangeSchema = new Schema(
   },
 );
 
-export type ChatExchange = InferSchemaType<typeof chatExchangeSchema>;
+export type Conversation = InferSchemaType<typeof conversationSchema>;
 
-export const ChatExchangeModel = model<ChatExchange>(
-  "ChatExchange",
-  chatExchangeSchema,
+export const ConversationModel = model<Conversation>(
+  "Conversation",
+  conversationSchema,
 );
