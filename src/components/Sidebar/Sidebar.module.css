@@ -76,6 +76,8 @@ transition: transform 0.3s ease-in-out;
   border: 1px solid transparent;
   border-radius: 8px;
   text-align: left;
+  color: light-dark(#212121, #ffffff);
+  font: inherit;
   cursor: pointer;
 }
 
@@ -86,6 +88,7 @@ transition: transform 0.3s ease-in-out;
 .ChatTitle {
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media screen and (max-width: 768px) {

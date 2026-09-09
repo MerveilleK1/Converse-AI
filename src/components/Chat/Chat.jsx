@@ -1,5 +1,5 @@
 import styles from "./Chat.module.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader } from "../Loader/Loader";
 import { Messages } from "../Messages/Messages";
 import { Controls } from "../Controls/Controls";
@@ -12,21 +12,38 @@ export function Chat({
   onChatMessagesUpdate,
   onAuthError,
 }) {
+  const isSyncingFromPropsRef = useRef(false);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
-    setMessages(chatMessages);
+    setMessages((currentMessages) =>
+      {
+        if (areMessagesEqual(currentMessages, chatMessages)) {
+          return currentMessages;
+        }
 
+        isSyncingFromPropsRef.current = true;
+        return chatMessages;
+      },
+    );
+  }, [chatId, chatMessages]);
+
+  useEffect(() => {
     if (assistant?.name === "googleai") {
       assistant.createChat(chatMessages);
     }
-  }, [chatId]);
+  }, [assistant, chatMessages]);
 
   useEffect(() => {
+    if (isSyncingFromPropsRef.current) {
+      isSyncingFromPropsRef.current = false;
+      return;
+    }
+
     onChatMessagesUpdate(chatId, messages);
-  }, [messages]);
+  }, [chatId, messages, onChatMessagesUpdate]);
 
   function updateLastMessageContent(content) {
     setMessages((prevMessages) =>
@@ -98,4 +115,22 @@ export function Chat({
       />
     </>
   );
+}
+
+function areMessagesEqual(firstMessages = [], secondMessages = []) {
+  if (firstMessages.length !== secondMessages.length) {
+    return false;
+  }
+
+  return firstMessages.every((message, index) => {
+    const otherMessage = secondMessages[index];
+
+    return (
+      message.role === otherMessage?.role &&
+      message.content === otherMessage?.content &&
+      message.provider === otherMessage?.provider &&
+      message.model === otherMessage?.model &&
+      message.createdAt === otherMessage?.createdAt
+    );
+  });
 }

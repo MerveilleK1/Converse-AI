@@ -55,7 +55,7 @@ export function Sidebar({
                 onClick={() => handleChatClick(chat.id)}
               >
                 <button className={styles.ChatButton}>
-                  <div className={styles.ChatTitle}>{chat.title}</div>
+                  <div className={styles.ChatTitle}>{getChatTitle(chat)}</div>
                 </button>
               </li>
             ))}
@@ -67,6 +67,22 @@ export function Sidebar({
       )}
     </>
   );
+}
+
+function getChatTitle(chat) {
+  if (typeof chat.title === "string" && chat.title.trim().length > 0) {
+    return chat.title.trim();
+  }
+
+  const firstMessage = chat.messages?.find(
+    (message) => message.role === "user" && message.content,
+  );
+
+  if (firstMessage) {
+    return firstMessage.content.trim().split(" ").slice(0, 7).join(" ");
+  }
+
+  return "New chat";
 }
 
 function MenuIcon() {

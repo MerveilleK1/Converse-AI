@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { Chat } from "./components/Chat/Chat";
 import { Assistant } from "./components/Assistant/Assistant";
@@ -8,8 +8,10 @@ import { WelcomeOverlay } from "./components/Welcome/WelcomeOverlay";
 
 const API_BASE_URL = "http://localhost:3001";
 const DEFAULT_ASSISTANT_VALUE = "openai:gpt-4o-mini";
+const ACTIVE_CONVERSATION_STORAGE_KEY = "activeConversationId";
 
 function App() {
+  const activeConversationRequestRef = useRef(0);
   const [authToken, setAuthToken] = useState(() =>
     localStorage.getItem("authToken"),
   );
@@ -50,6 +52,7 @@ function App() {
     setAuthMessage(typeof nextAuthMessage === "string" ? nextAuthMessage : "");
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
+    localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
   }, []);
 
   const handleAuthExpired = useCallback(() => {
@@ -117,9 +120,13 @@ function App() {
   const handleNewChatCreate = useCallback(async () => {
     try {
       const chat = await createConversation();
+      activeConversationRequestRef.current += 1;
 
       setActiveChatId(chat.id);
       setChats((prevChats) => [...prevChats, chat]);
+      setAssistantValue(formatAssistantValue(chat.provider, chat.model));
+      setHasStarted(false);
+      localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, chat.id);
     } catch (error) {
       console.error(error);
     }
@@ -149,44 +156,65 @@ function App() {
     localStorage.setItem("authUser", JSON.stringify(user));
   }, []);
 
-  function handleChatMessagesUpdate(id, messages) {
-    const title = messages[0]?.content.split(" ").slice(0, 7).join(" ");
+  const handleChatMessagesUpdate = useCallback((id, messages) => {
+    const title =
+      typeof messages[0]?.content === "string"
+        ? messages[0].content.trim().split(" ").slice(0, 7).join(" ")
+        : "New chat";
 
     setChats((prevChats) =>
-      prevChats.map((chat) =>
-        chat.id === id
-          ? { ...chat, title: chat.title === "New chat" ? title : chat.title, messages }
-          : chat,
-      ),
-    );
-  }
+      prevChats.map((chat) => {
+        if (chat.id !== id) return chat;
 
-  async function handleActiveChatIdChange(id) {
+        const nextTitle = chat.title === "New chat" ? title : chat.title;
+
+        if (
+          chat.title === nextTitle &&
+          areMessagesEqual(chat.messages, messages)
+        ) {
+          return chat;
+        }
+
+        return { ...chat, title: nextTitle, messages };
+      }),
+    );
+  }, []);
+
+  const handleActiveChatIdChange = useCallback(async (id) => {
+    const requestId = activeConversationRequestRef.current + 1;
+    activeConversationRequestRef.current = requestId;
     const chat = chats.find((item) => item.id === id);
 
     if (chat) {
       setAssistantValue(formatAssistantValue(chat.provider, chat.model));
+      setHasStarted((chat.messages ?? []).length > 0);
     }
+
+    setActiveChatId(id);
+    localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, id);
 
     try {
       const messages = await fetchConversationMessages(id);
+
+      if (requestId !== activeConversationRequestRef.current) return;
 
       setChats((prevChats) =>
         prevChats.map((chat) =>
           chat.id === id ? { ...chat, messages } : chat,
         ),
       );
-      setActiveChatId(id);
       setHasStarted(messages.length > 0);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, [chats, fetchConversationMessages]);
 
   useEffect(() => {
     if (!authToken || !authUser || hasLoadedConversations) return;
 
     let isCancelled = false;
+    const requestId = activeConversationRequestRef.current + 1;
+    activeConversationRequestRef.current = requestId;
 
     async function loadConversations() {
       try {
@@ -205,8 +233,22 @@ function App() {
           restoredChats = [await createConversation()];
         }
 
-        const selectedChat = restoredChats[restoredChats.length - 1];
+        if (isCancelled || requestId !== activeConversationRequestRef.current) {
+          return;
+        }
+
+        const storedActiveConversationId = localStorage.getItem(
+          ACTIVE_CONVERSATION_STORAGE_KEY,
+        );
+        const selectedChat =
+          restoredChats.find((chat) => chat.id === storedActiveConversationId) ??
+          restoredChats[restoredChats.length - 1];
         const messages = await fetchConversationMessages(selectedChat.id);
+
+        if (isCancelled || requestId !== activeConversationRequestRef.current) {
+          return;
+        }
+
         const chatsWithMessages = restoredChats.map((chat) =>
           chat.id === selectedChat.id ? { ...chat, messages } : chat,
         );
@@ -216,6 +258,7 @@ function App() {
         setAssistantValue(formatAssistantValue(selectedChat.provider, selectedChat.model));
         setHasLoadedConversations(true);
         setHasStarted(messages.length > 0);
+        localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, selectedChat.id);
       } catch (error) {
         console.error(error);
 
@@ -303,9 +346,12 @@ function App() {
 function mapConversationToChat(conversation) {
   return {
     id: conversation._id,
-    title: conversation.title,
-    provider: conversation.provider,
-    model: conversation.model,
+    title:
+      typeof conversation.title === "string" && conversation.title.trim().length > 0
+        ? conversation.title.trim()
+        : "New chat",
+    provider: conversation.provider ?? "openai",
+    model: conversation.model ?? "gpt-4o-mini",
     messages: [],
   };
 }
@@ -343,6 +389,24 @@ function formatAssistantValue(provider, model) {
   const providerKey = provider === "deepseek" ? "deepseekai" : provider;
 
   return `${providerKey}:${model}`;
+}
+
+function areMessagesEqual(firstMessages = [], secondMessages = []) {
+  if (firstMessages.length !== secondMessages.length) {
+    return false;
+  }
+
+  return firstMessages.every((message, index) => {
+    const otherMessage = secondMessages[index];
+
+    return (
+      message.role === otherMessage?.role &&
+      message.content === otherMessage?.content &&
+      message.provider === otherMessage?.provider &&
+      message.model === otherMessage?.model &&
+      message.createdAt === otherMessage?.createdAt
+    );
+  });
 }
 
 export default App;
