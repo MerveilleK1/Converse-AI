@@ -1,12 +1,17 @@
 import cors from "cors";
 import express from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { requireAuth } from "./middleware/requireAuth.js";
 import { createDeepSeekReply } from "./services/deepseek.js";
 import { createGoogleAIReply } from "./services/googleai.js";
 import { createOpenAIReply } from "./services/openai.js";
 import { ChatExchangeModel } from "./models/ChatExchange.js";
+import { UserModel } from "./models/User.js";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+const passwordSaltRounds = 10;
 
 export const app = express();
 
@@ -22,8 +27,112 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/api/chat", async (req, res, next) => {
+app.post("/api/auth/register", async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (
+    typeof email !== "string" ||
+    !email.includes("@") ||
+    typeof password !== "string" ||
+    password.length < 8
+  ) {
+    res.status(400).json({ error: "Valid email and password are required" });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const existingUser = await UserModel.findOne({ email: normalizedEmail });
+
+    if (existingUser) {
+      res.status(409).json({ error: "Email is already registered" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, passwordSaltRounds);
+    const user = await UserModel.create({
+      email: normalizedEmail,
+      passwordHash,
+    });
+
+    res.status(201).json({
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/auth/login", async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (
+    typeof email !== "string" ||
+    !email.includes("@") ||
+    typeof password !== "string" ||
+    password.length === 0
+  ) {
+    res.status(400).json({ error: "Valid email and password are required" });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const user = await UserModel.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      res.status(500).json({ error: "JWT secret is not configured" });
+      return;
+    }
+
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+      },
+      jwtSecret,
+      { expiresIn: "1h" },
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/chat", requireAuth, async (req, res, next) => {
   const { provider, message, model, history } = req.body;
+  const authenticatedUserId = req.auth?.userId;
+
+  if (!authenticatedUserId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
 
   if (typeof message !== "string" || message.trim().length === 0) {
     res.status(400).json({ error: "Message is required" });
@@ -63,6 +172,7 @@ app.post("/api/chat", async (req, res, next) => {
     }
 
     await ChatExchangeModel.create({
+      userId: authenticatedUserId,
       userMessage: message.trim(),
       assistantMessage: reply,
       provider,
@@ -75,9 +185,20 @@ app.post("/api/chat", async (req, res, next) => {
   }
 });
 
-app.get("/api/chat/history", async (_req, res, next) => {
+app.get("/api/chat/history", requireAuth, async (req, res, next) => {
+  const authenticatedUserId = req.auth?.userId;
+
+  if (!authenticatedUserId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
   try {
-    const exchanges = await ChatExchangeModel.find().sort({ createdAt: 1 }).lean();
+    const exchanges = await ChatExchangeModel.find({
+      userId: authenticatedUserId,
+    })
+      .sort({ createdAt: 1 })
+      .lean();
     res.json({ exchanges });
   } catch (error) {
     next(error);

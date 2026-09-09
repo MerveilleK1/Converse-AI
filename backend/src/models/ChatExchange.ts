@@ -2,6 +2,11 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 
 const chatExchangeSchema = new Schema(
   {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     userMessage: {
       type: String,
       required: true,
