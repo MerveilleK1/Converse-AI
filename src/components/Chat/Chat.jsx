@@ -10,6 +10,7 @@ export function Chat({
   chatId,
   chatMessages,
   onChatMessagesUpdate,
+  onAuthError,
 }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +65,11 @@ export function Chat({
 
       setIsStreaming(false);
     } catch (error) {
+      if (error?.status === 401) {
+        onAuthError();
+        return;
+      }
+
       addMessage({
         content:
           error?.message ??

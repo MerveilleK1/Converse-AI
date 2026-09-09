@@ -33,10 +33,14 @@ app.post("/api/auth/register", async (req, res, next) => {
   if (
     typeof email !== "string" ||
     !email.includes("@") ||
-    typeof password !== "string" ||
-    password.length < 8
+    typeof password !== "string"
   ) {
     res.status(400).json({ error: "Valid email and password are required" });
+    return;
+  }
+
+  if (password.length < 5) {
+    res.status(400).json({ error: "Password must be at least 5 characters" });
     return;
   }
 

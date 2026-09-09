@@ -20,6 +20,26 @@ function createPublicError(statusCode: number, publicMessage: string) {
   return error;
 }
 
+function getProviderLogDetails(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return { message: String(error) };
+  }
+
+  const providerError = error as {
+    status?: number;
+    code?: string;
+    type?: string;
+    message?: string;
+  };
+
+  return {
+    status: providerError.status,
+    code: providerError.code,
+    type: providerError.type,
+    message: providerError.message,
+  };
+}
+
 function formatHistory(history: ChatMessage[] = []) {
   return history
     .filter(
@@ -65,7 +85,7 @@ export async function createOpenAIReply(
 
     return result.output_text;
   } catch (error) {
-    console.error("OpenAI request failed", error);
+    console.error("OpenAI request failed", getProviderLogDetails(error));
     throw createPublicError(502, "LLM provider request failed");
   }
 }

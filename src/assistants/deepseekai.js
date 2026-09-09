@@ -1,8 +1,12 @@
 export class Assistant {
   #model;
+  #authToken;
+  #onAuthError;
 
-  constructor(model = "deepseek-chat") {
+  constructor(model = "deepseek-chat", authToken, onAuthError) {
     this.#model = model;
+    this.#authToken = authToken;
+    this.#onAuthError = onAuthError;
   }
 
   #formatHistory(history = []) {
@@ -25,6 +29,7 @@ export class Assistant {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${this.#authToken}`,
         },
         body: JSON.stringify({
           provider: "deepseek",
@@ -35,6 +40,13 @@ export class Assistant {
       });
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        this.#onAuthError?.();
+        const error = new Error("Your session has expired. Please log in again.");
+        error.status = 401;
+        throw error;
+      }
 
       if (!response.ok) {
         throw new Error(data?.error ?? "Backend request failed");

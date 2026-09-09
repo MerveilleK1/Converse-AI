@@ -11,7 +11,7 @@ const assistantMap = {
   deepseekai: DeepSeekAIAssistant,
 };
 
-export function Assistant({ onAssistantChange }) {
+export function Assistant({ authToken, onAuthError, onAssistantChange }) {
   const [value, setValue] = useState("openai:gpt-4o-mini");
 
   function handleValueChange(event) {
@@ -26,8 +26,8 @@ export function Assistant({ onAssistantChange }) {
      throw new Error(`Unknown assistant: ${assistant} or model: ${model}`);
     }
 
-     onAssistantChange(new AssistantClass(model));
-  }, [value]);
+     onAssistantChange(new AssistantClass(model, authToken, onAuthError));
+  }, [value, authToken, onAuthError]);
 
   return (
     <div className={styles.Assistant}>

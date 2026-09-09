@@ -1,9 +1,13 @@
 export class Assistant {
   #model;
+  #authToken;
+  #onAuthError;
   name = "googleai";
 
-  constructor(model = "gemini-2.5-flash") {
+  constructor(model = "gemini-2.5-flash", authToken, onAuthError) {
     this.#model = model;
+    this.#authToken = authToken;
+    this.#onAuthError = onAuthError;
   }
 
   createChat() {}
@@ -28,6 +32,7 @@ export class Assistant {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${this.#authToken}`,
         },
         body: JSON.stringify({
           provider: "googleai",
@@ -38,6 +43,13 @@ export class Assistant {
       });
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        this.#onAuthError?.();
+        const error = new Error("Your session has expired. Please log in again.");
+        error.status = 401;
+        throw error;
+      }
 
       if (!response.ok) {
         throw new Error(data?.error ?? "Backend request failed");
