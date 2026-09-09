@@ -4,6 +4,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { createDeepSeekReply } from "./services/deepseek.js";
 import { createGoogleAIReply } from "./services/googleai.js";
 import { createOpenAIReply } from "./services/openai.js";
+import { ChatExchangeModel } from "./models/ChatExchange.js";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
 
@@ -36,24 +37,48 @@ app.post("/api/chat", async (req, res, next) => {
 
   try {
     let reply;
+    let selectedModel;
 
     if (provider === "openai") {
+      selectedModel = typeof model === "string" ? model : "gpt-4o-mini";
       reply = await createOpenAIReply(
         message.trim(),
-        typeof model === "string" ? model : undefined,
+        selectedModel,
         Array.isArray(history) ? history : [],
       );
     } else if (provider === "googleai") {
+      selectedModel = typeof model === "string" ? model : "gemini-2.5-flash";
       reply = await createGoogleAIReply(
         message.trim(),
-        typeof model === "string" ? model : undefined,
+        selectedModel,
         Array.isArray(history) ? history : [],
       );
     } else {
-      reply = await createDeepSeekReply(message.trim());
+      selectedModel = typeof model === "string" ? model : "deepseek-chat";
+      reply = await createDeepSeekReply(
+        message.trim(),
+        selectedModel,
+        Array.isArray(history) ? history : [],
+      );
     }
 
+    await ChatExchangeModel.create({
+      userMessage: message.trim(),
+      assistantMessage: reply,
+      provider,
+      model: selectedModel,
+    });
+
     res.json({ reply });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/chat/history", async (_req, res, next) => {
+  try {
+    const exchanges = await ChatExchangeModel.find().sort({ createdAt: 1 }).lean();
+    res.json({ exchanges });
   } catch (error) {
     next(error);
   }
