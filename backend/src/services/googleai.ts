@@ -23,6 +23,26 @@ function createPublicError(statusCode: number, publicMessage: string) {
   return error;
 }
 
+function getProviderLogDetails(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return { message: String(error) };
+  }
+
+  const providerError = error as {
+    status?: number;
+    code?: string;
+    type?: string;
+    message?: string;
+  };
+
+  return {
+    status: providerError.status,
+    code: providerError.code,
+    type: providerError.type,
+    message: providerError.message,
+  };
+}
+
 function formatHistory(history: ChatMessage[] = []) {
   return history
     .filter(({ role }) => role !== "system")
@@ -58,7 +78,7 @@ export async function createGoogleAIReply(
     const result = await chat.sendMessage({ message });
     return result.text ?? "";
   } catch (error) {
-    console.error("Google AI request failed", error);
+    console.error("Google AI request failed", getProviderLogDetails(error));
     throw createPublicError(502, "LLM provider request failed");
   }
 }

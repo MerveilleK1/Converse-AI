@@ -11,23 +11,31 @@ const assistantMap = {
   deepseekai: DeepSeekAIAssistant,
 };
 
-export function Assistant({ onAssistantChange }) {
-  const [value, setValue] = useState("openai:gpt-4o-mini");
+export function Assistant({
+  authToken,
+  value,
+  onAuthError,
+  onAssistantChange,
+  onValueChange,
+}) {
+  const [localValue, setLocalValue] = useState(value ?? "openai:gpt-4o-mini");
+  const selectedValue = value ?? localValue;
 
   function handleValueChange(event) {
-    setValue(event.target.value);
+    setLocalValue(event.target.value);
+    onValueChange?.(event.target.value);
   }
 
   useEffect(() => {
-    const [assistant, model] = value.split(":");
+    const [assistant, model] = selectedValue.split(":");
     const AssistantClass = assistantMap[assistant];
 
     if (!AssistantClass) {
      throw new Error(`Unknown assistant: ${assistant} or model: ${model}`);
     }
 
-     onAssistantChange(new AssistantClass(model));
-  }, [value]);
+     onAssistantChange(new AssistantClass(model, authToken, onAuthError));
+  }, [selectedValue, authToken, onAuthError, onAssistantChange]);
 
   return (
     <div className={styles.Assistant}>
@@ -38,7 +46,7 @@ export function Assistant({ onAssistantChange }) {
       <select
         id="assistant-select"
         className={styles.Select}
-        value={value}
+        value={selectedValue}
         onChange={handleValueChange}
       >
         <optgroup label="Google AI">
