@@ -25,9 +25,7 @@ app.use(
 
 app.use(express.json());
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
-});
+
 
 app.post("/api/auth/register", async (req, res, next) => {
   const { email, password } = req.body;
@@ -181,8 +179,7 @@ app.get("/api/conversations", requireAuth, async (req, res, next) => {
   }
 });
 
-app.get(
-  "/api/conversations/:conversationId/messages",
+app.get( "/api/conversations/:conversationId/messages",
   requireAuth,
   async (req, res, next) => {
     const authenticatedUserId = req.auth?.userId;
